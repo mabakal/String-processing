@@ -1,0 +1,213 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  pdf: default
+  pdf_document: default
+---
+
+# String processing
+
+### Introduction
+
+Tous tâche d'un data scientist commence par la mis á propres des données á analyser. Le Data cleaning est un étape indispensable dans l'analyse de données et il prends la grande partie d'un de temps d'un scientifique de données. Il peux consister au traitement des chaînes de charactères, des valeurs maquantes, convertion de types, opérations sur les dates etc. Il est très cruciale de bien purifier les données car une mauvaise purification de données peut entrainer, Une erreurs d'analyse, une perte d'information ou encore une prise de décision erroné, etc.
+
+Le traitement avec les chaînes de caractère est l'une opération dans la purification de données, dans ce cas d'utilisation on va voir les différents problèmes qu'on peut rencontrer quand on traite avec les caractères on verras plus précisement:
+
+-   Extractions des nombres d'une chaines de caractères
+
+-   Suppressions des charactères non désiré d'un text
+
+-   recherche d'un modèle spécifique et le remplacer par un autre dans une chaine
+
+-   extraction une partie spécifique d'un text
+
+-   Division d'une chaine de caractère en de multiples parties
+
+Le packages nommés **base** de R fournie des fonctions pour éffectué toutes ces tâches cependant le nom de ces fonction n'est pas faciles á mémoriser. Heureusement il y a un package de R appélé **stringr** qui réalise d'une manière concise l'ensemble de ces opérations mais aussi le nom est faciles a mémoriser, toutes les fonctions opérant sur les chaines de charactères commence par le mot **str\_**. Par exemple la fonction **str_split** de stringr est la fonction qui divise une chaine de charactère selon un séparateur qui lui est fournie.
+
+#### Importation des bibliothèques
+
+-   **tidyverse** une groupe de packages regroupant tous les outils pour l'analyse de données
+
+-   **stringr** le package en question qui fournie les outils pour traiter avec les chaines de charactères
+
+-   **Dslabs** est un packages construit pour les data scientists, il contient les fonctions et les datasets utilisés par pour pratiquer l'ensemble des challenges qu'on peut rencontrer en analyse de données.
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(dslabs)
+```
+
+dslabs contient un dataset appélé **reported_heights**, il est construits á la suite d'un formulaire web que les etudiant on remplis leur demandant de reporter leur tailles. Nous allons l'utilisé dans ce documents
+
+```{r}
+data("reported_heights")
+```
+
+```{r}
+class(reported_heights$height)
+```
+
+Les tailles reportées sont des chaîne de caractères. Créons une variable x a qui on affecte la taille.
+
+```{r}
+x <- reported_heights$height
+```
+
+```{r}
+x[c(1:30, 60:100, 150:200)]
+```
+
+Les données reporté ici, ne sont pas sous le même format même s'il sont correct, il serait difficile de les analysé, nous allons les ramener sous le même format. Les étudiant devraient rapporter leur tailles en inches qui est une unité de mésure utilisé dans certains pays comme le Royaume Uni, le canada et les USA .Mais il y a certains qui ont reporter en **Cm**, d'autre en **Feet** et d'autre en lettre comme **5 feet and 8.11 inches**
+
+Premièrement on récupérer les données qui ne sont pas en **pouces**( inches) ni en **Cm** pour cela on écirt une fonction qui récupère ces données. La taille minimal en **inche** est 50 et le maximal est 80. La fonction prends en paramètre minimun de inches, le maximum de inches et le données en question
+
+la fonction récupere les valeurs non disponible après être transformé en numerique, les numérique qui sont inférieur au minimum et supérieur au maximum ce qui veux dire qu'il ne sont pas en inches, et le dernier c'est ceux qui ne sont pas noté en centimètre. Pour les autres ils sont correctement écrit en inches
+
+```{r}
+not_inches_or_cm <- function(x, smallest = 50, tallest = 84){ 
+inches <- suppressWarnings(as.numeric(x))
+ind <- !is.na(inches) & ((inches >= smallest & inches <= tallest) | (inches/2.54 >= smallest & inches/2.54 <= tallest))
+!ind }
+
+problematiques <- reported_heights %>% filter(not_inches_or_cm(height)) %>% pull(height)
+```
+
+```{r}
+c(length(problematiques), length(x))
+as_tibble(problematiques)
+```
+
+Après analyse, on distingue les problème suivant:
+
+1.  x'y ou x' y' ' ou x'y'' ou x reprentes le foot et y le inches
+2.  x.y. ou x,y de la même manière x represente le foot et y le inches
+3.  ceux qui sont representé en cm
+4.  et bien evidement d'autre entre
+
+Tout d'abord on va commencer par ces trois premier ensuite attacker le reste. On va utilisé les expression régulier pour effectuer ces text.
+
+#### Les Expressions régulière
+
+Une expresion regulière est une description d'un modèle d'un ensemble chaine de caractère utilisée pour effectuer des recherches dans un text. Si on demande á un utilisateur d'entrer son adresse mail, on peux définir un modèl d'adress mail avec qui on verifie si l'adress rentré correspond bien au norme. Voic quelques exemples d'expression régulière en r:
+
+-   \\\\d signifie un chiffre quelconques
+
+-   [] ceci represente un classe de charactère ei: [1-5] peux correspondre a 1,2,3,4 ou 5
+
+-   Anchors: permet de definir la debut et la fin du modèle. \^ debut \$ fin
+
+-   quantificateurs: permet de definir un nombre de charactère {1,3,4} 1, 3 ou c4 charactère
+
+-   \s represente les espaces
+
+-   +, \*, ? represente respectivement 1 ou plus, 0 ou plus, 1 et 1 seul charactère
+
+-   \^ á l'interieur d'un chrochet signifie non ex : [\^a-zA-Z] pas d'alphabet majuscule ou miniscule
+
+-   Pour echapper les charactères spéciaux on utilisie \\ ex: "\^\\\\d\\"\$"
+
+On a une idée des expression régulier en r, on va parcourir les différent modèle de problème existant
+
+```{r}
+ model <- "^[4-7]'\\d{1,2}\"$" # commence par un chiffre entre 4 et 7 suivie de ' et d'un ou deux chiffre et "
+ str_subset(problematiques, model)
+```
+
+```{r}
+class(problematiques)
+str_subset(problematiques, "inches")
+```
+
+```{r}
+str_subset(problematiques, "''")
+```
+
+```{r}
+str_subset(problematiques, "\\d{1}\\.\\d{1,2}")
+```
+
+```{r}
+pattern <- "^[4-7]\\s*'\\s*\\d{1,2}$"
+str_subset(problematiques, pattern)
+```
+
+```{r}
+model <- "^[4-7]\\s*'\\s*\\d{1,2}$" # par exemple 5'10 correspond
+```
+
+```{r}
+problematiques %>% str_replace("feet|ft|foot", "'") %>% 
+  str_replace("inches|in|''|\"", "") %>% 
+  str_detect(pattern = model) %>% sum()
+```
+
+On ecris deux fonction:
+
+-   Une fonction qui reconvertie le format des données
+
+-   Une fonction qui convertis les nombres qui sont écris en lettres en chiffres
+
+```{r}
+convert_format <- function(s){
+   s %>% 
+    str_replace("feet|foot|ft", "'") %>%  
+    str_replace_all("inches|in|''|\"|cm|and", "") %>% 
+    str_replace("^([4-7])\\s*[,\\.\\s+]\\s*(\\d*)$", "\\1'\\2") %>% 
+    str_replace("^([56])'?$", "\\1'0") %>% 
+    str_replace("^([12])\\s*,\\s*(\\d*)$", "\\1\\.\\2") %>% 
+    str_trim()
+}
+
+# convert word to number
+words_to_numbers <- function(s){ str_to_lower(s) %>%
+    str_replace_all("zero", "0") %>%
+    str_replace_all("one", "1") %>% 
+    str_replace_all("two", "2") %>%
+    str_replace_all("three", "3") %>%
+    str_replace_all("four", "4") %>% 
+    str_replace_all("five", "5") %>% 
+    str_replace_all("six", "6") %>% 
+    str_replace_all("seven", "7") %>% 
+    str_replace_all("eight", "8") %>%
+    str_replace_all("nine", "9") %>%
+    str_replace_all("ten", "10") %>% 
+    str_replace_all("eleven", "11")
+}
+```
+
+Maintenant on fait tous en une seul bloques
+
+```{r}
+pattern <- "^([4-7])\\s*'\\s*(\\d+\\.?\\d*)$"
+smallest <- 50
+tallest <- 84
+new_heights <- reported_heights %>%
+mutate(original = height, height = words_to_numbers(height) %>% convert_format()) %>% extract(height, c("feet", "inches"), regex = pattern, remove = FALSE) %>% mutate_at(c("height", "feet", "inches"), as.numeric) %>%
+mutate(guess = 12*feet + inches) %>%
+mutate(height = case_when(
+!is.na(height) & between(height, smallest, tallest) ~ height, 
+!is.na(height) & between(height/2.54, smallest, tallest) ~ height/2.54, 
+!is.na(height) & between(height*100/2.54, smallest, tallest) ~ height*100/2.54,
+!is.na(guess) & inches < 12 & between(guess, smallest, tallest) ~ guess, 
+TRUE ~ as.numeric(NA))) %>%
+select(-guess)
+```
+
+```{r}
+new_heights %>% filter(not_inches_or_cm(original)) %>%
+  select(original, height) %>% 
+  arrange(height)
+```
+
+```{r}
+new_heights[c(1:10, 30:80, 100:150),]
+```
+
+Les données ont été bien nétoyé
+
+### Conclusion
+
+Ce cas d'utilisation a mis montre quelques problèmes qu'on peux rencontrer quand on procéde les chaînes de caractère en r et comment y remedier. Pour purifier les chaînes de charactères, il est très important de maitriser les expression régulier en r qui ne sont qu'un modèle de recherche dans un text. Ces dernier donne un moyen efficace et concise de netoyer les chaine de caractère. Le traitement de chaîne de caractère ne sont pas que les seul aspect de la purification de données, un autre aspect est le traitement des dates, suppression des doublons, traitement des valeurs manquantes etc.
